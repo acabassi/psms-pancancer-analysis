@@ -9,7 +9,7 @@ library(mclust)
 
 #### Check that maximum number of clusters has been set correctly in mdipp #####
 
-# samples_max100 <- read.csv("../mdi/miRNA_100max.csv")
+samples_max100 <- read.csv("../mdi/miRNA_100max.csv")
 # n_clusters_max100 <- rep(0, 1000)
 # for(i in 1:dim(samples_max100)[1]){
 #   sample_i <-samples_max100[i,]
@@ -21,7 +21,7 @@ library(mclust)
 
 ################################# Compute PSM ##################################
 # 
-# samples <- read.csv("../mdi/miRNA_100max.csv")
+mcmc_samples <- read.csv("../mdi/miRNA_100max.csv")
 # samples <- samples[1001:2000, 2:2422]
 # colnames(samples) <- sub("Dataset1_", "", colnames(samples))
 # 
@@ -116,4 +116,40 @@ draw(
   heatmap_legend_side = "bottom",
   annotation_legend_side = "bottom"
 )
+dev.off()
+
+########################### Convergence  assessment ############################
+
+mass_parameter <- mcmc_samples[,1]
+
+png("../figures/mass_parameter_mirna_chain.png",
+    height = 400, width = 400)
+plot(seq.int(from=5001, to=10000, by = 5),
+     mass_parameter[1001:2000],
+     type = 'l', xlab = "Iteration", ylab = "Mass parameter")
+dev.off()
+
+png("../figures/mass_parameter_mirna_posterior.png",
+    height = 400, width = 400)
+hist(mass_parameter[1001:2000],
+     breaks = 50,
+     main = "",
+     xlab = "Mass parameter")
+dev.off()
+
+png("../figures/n_clusters_mirna_chain.png",
+    height = 400, width = 400)
+plot(seq.int(from=5001, to=10000, by = 5),
+     n_clusters,
+     type = 'l',
+     xlab = "Iteration",
+     ylab = "Number of clusters")
+dev.off()
+
+png("../figures/n_clusters_mirna_posterior.png",
+    height = 400, width = 400)
+hist(n_clusters,
+     breaks = 6,
+     main = "",
+     xlab = "Number of clusters")
 dev.off()

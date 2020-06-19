@@ -21,7 +21,7 @@ library(mclust)
 
 ################################## Compute PSM #################################
 
-# samples <- read.csv("../mdi/CN.csv")
+mcmc_samples <- read.csv("../mdi/CN_200max.csv")
 # samples <- samples[seq.int(from = 1001, to = 2000), 2:2422]
 # colnames(samples) <- sub("Dataset1_", "", colnames(samples))
 # 
@@ -43,7 +43,6 @@ library(mclust)
 ################################## Cluster PSM #################################
 
 load("../data/samples.RData")
-
 
 # table(n_clusters)
 # 
@@ -119,4 +118,39 @@ draw(
 )
 dev.off()
 
+########################### Convergence  assessment ############################
 
+mass_parameter <- mcmc_samples[,1]
+
+png("../figures/mass_parameter_cn_chain.png",
+    height = 400, width = 400)
+plot(seq.int(from=5001, to=10000, by = 5),
+     mass_parameter[1001:2000],
+     type = 'l', xlab = "Iteration", ylab = "Mass parameter")
+dev.off()
+
+png("../figures/mass_parameter_cn_posterior.png",
+    height = 400, width = 400)
+hist(mass_parameter[1001:2000],
+     breaks = 50,
+     main = "",
+     xlab = "Mass parameter")
+dev.off()
+
+png("../figures/n_clusters_cn_chain.png",
+    height = 400, width = 400)
+plot(seq.int(from=5001, to=10000, by = 5),
+     n_clusters,
+     type = 'l',
+     xlab = "Iteration",
+     ylab = "Number of clusters")
+dev.off()
+
+png("../figures/n_clusters_cn_posterior.png",
+    height = 400, width = 400)
+hist(n_clusters,
+     breaks = 2,
+     main = "",
+     xlab = "Number of clusters")
+dev.off()
+ 
