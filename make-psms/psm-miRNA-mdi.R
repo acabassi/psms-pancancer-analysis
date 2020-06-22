@@ -7,57 +7,49 @@ library(ComplexHeatmap)
 library(klic)
 library(mclust)
 
+################################# Select chain #################################
+
+chain <- 1 # Must be an integer between 1 and 5
+
 #### Check that maximum number of clusters has been set correctly in mdipp #####
 
-samples_max100 <- read.csv("../mdi/miRNA_100max.csv")
-# n_clusters_max100 <- rep(0, 1000)
-# for(i in 1:dim(samples_max100)[1]){
-#   sample_i <-samples_max100[i,]
-#   names(sample_i) <- NULL
-#   sample_i <- unlist(sample_i)
-#   n_clusters_max100[i] <- length(unique(sample_i))
-# }
-# plot(1:1000, n_clusters_max100)
+mcmc_samples <- read.csv(paste0("../mdi/miRNA_100max_chain", chain,".csv"))
+n_clusters <- rep(0, 1000)
+for(i in 1:dim(mcmc_samples)[1]){
+  sample_i <-mcmc_samples[i,]
+  names(sample_i) <- NULL
+  sample_i <- unlist(sample_i)
+  n_clusters[i] <- length(unique(sample_i))
+}
+plot(n_clusters)
 
 ################################# Compute PSM ##################################
-# 
-mcmc_samples <- read.csv("../mdi/miRNA_100max.csv")
-# samples <- samples[1001:2000, 2:2422]
-# colnames(samples) <- sub("Dataset1_", "", colnames(samples))
-# 
-# # psm_mirna <- matrix(0, dim(samples)[2], dim(samples)[2])
-# n_clusters <- rep(0, dim(samples)[1])
-# for(i in 1:dim(samples)[1]){
-#   cat(i, "\n")
-#   sample_i <-samples[i,]
-#   names(sample_i) <- NULL
-#   sample_i <- unlist(sample_i)
-#   n_clusters[i] <- length(unique(sample_i))
-#   for(j in unique(sample_i)){
-#     psm_mirna <- psm_mirna + crossprod(samples[i,] == j)
-#   }
-# }
-# psm_mirna <- psm_mirna / dim(samples)[1]
-# coph_corr_mirna <- copheneticCorrelation(psm_mirna)
+
+mcmc_samples <- mcmc_samples[1001:2000, 2:2422]
+colnames(mcmc_samples) <- sub("Dataset1_", "", colnames(mcmc_samples))
+Rcpp::sourceCpp("makePSM.cpp")
+psm_mirna <- makePSM(as.matrix(mcmc_samples))
+rownames(psm_mirna) <- colnames(psm_mirna) <- colnames(mcmc_samples)
+coph_corr_mirna <- copheneticCorrelation(psm_mirna)
 
 ################################## Cluster PSM #################################
 
 load("../data/samples.RData")
  
-# table(n_clusters)
-# 
-# parameters <- list(
-#   cluster_count =
-#     as.numeric(names(table(n_clusters))[which.max(table(n_clusters))]))
-# psm_mirna <- spectrumShift(psm_mirna, verbose = TRUE, shift = 0.000001)
-# kkm_output <- kkmeans(psm_mirna, parameters)
-# clusters <- kkm_output$clustering
-# names(clusters) <- gsub("\\.", "-", rownames(psm_mirna))
-# 
-# ari <- adjustedRandIndex(clusters, anno_col[names(clusters),]$Tissue) 
-# save(psm_mirna, coph_corr_mirna, n_clusters, clusters, ari,
-#      file = "../mdi/psm_mirna.RData")
-load("../mdi/psm_mirna.RData")
+table(n_clusters)
+
+parameters <- list(
+  cluster_count =
+    as.numeric(names(table(n_clusters))[which.max(table(n_clusters))]))
+psm_mirna <- spectrumShift(psm_mirna, verbose = TRUE, shift = 0.000001)
+kkm_output <- kkmeans(psm_mirna, parameters)
+clusters <- kkm_output$clustering
+names(clusters) <- gsub("\\.", "-", rownames(psm_mirna))
+
+ari <- adjustedRandIndex(clusters, anno_col[names(clusters),]$Tissue)
+save(psm_mirna, coph_corr_mirna, n_clusters, clusters, ari,
+     file = paste0("../mdi/psm_mirna_chain", chain,".RData"))
+load(paste0("../mdi/psm_mirna_chain", chain,".RData"))
 
 ################################### Plot PSM ###################################
 
@@ -107,7 +99,7 @@ Hpsm <- Heatmap(psm_mirna,
                 show_row_dend = FALSE
 )
 
-png("../figures/psm_mdi_mirna.png",
+png(paste0("../figures/psm_mdi_mirna_chain", chain,".png"),
     height = 572,
     width = 520
 )
@@ -122,14 +114,14 @@ dev.off()
 
 mass_parameter <- mcmc_samples[,1]
 
-png("../figures/mass_parameter_mirna_chain.png",
+png(paste0("../figures/mass_parameter_mirna_chain", chain,".png"),
     height = 400, width = 400)
 plot(seq.int(from=5001, to=10000, by = 5),
      mass_parameter[1001:2000],
      type = 'l', xlab = "Iteration", ylab = "Mass parameter")
 dev.off()
 
-png("../figures/mass_parameter_mirna_posterior.png",
+png(paste0("../figures/mass_parameter_mirna_posterior_chain", chain,".png"),
     height = 400, width = 400)
 hist(mass_parameter[1001:2000],
      breaks = 50,
@@ -137,7 +129,7 @@ hist(mass_parameter[1001:2000],
      xlab = "Mass parameter")
 dev.off()
 
-png("../figures/n_clusters_mirna_chain.png",
+png(paste0("../figures/n_clusters_mirna_chain", chain,".png"),
     height = 400, width = 400)
 plot(seq.int(from=5001, to=10000, by = 5),
      n_clusters,
@@ -146,7 +138,7 @@ plot(seq.int(from=5001, to=10000, by = 5),
      ylab = "Number of clusters")
 dev.off()
 
-png("../figures/n_clusters_mirna_posterior.png",
+png(paste0("../figures/n_clusters_mirna_posterior_chain", chain,".png"),
     height = 400, width = 400)
 hist(n_clusters,
      breaks = 6,

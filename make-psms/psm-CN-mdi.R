@@ -7,57 +7,49 @@ library(ComplexHeatmap)
 library(klic)
 library(mclust)
 
+################################# Select chain #################################
+
+chain <- 1 # Must be an integer between 1 and 5
+
 #### Check that maximum number of clusters has been set correctly in mdipp #####
 
-# samples_max200 <- read.csv("../mdi/CN_200max.csv")
-# n_clusters_max200 <- rep(0, 1500)
-# for(i in 1:dim(samples_max200)[1]){
-#   sample_i <-samples_max200[i,]
-#   names(sample_i) <- NULL
-#   sample_i <- unlist(sample_i)
-#   n_clusters_max200[i] <- length(unique(sample_i))
-# }
-# plot(1:1500, n_clusters_max200)
+mcmc_samples <- read.csv(paste0("../mdi/CN_250max_chain",chain,".csv"))
+n_clusters <- rep(0, dim(mcmc_samples)[1])
+for(i in 1:dim(mcmc_samples)[1]){
+  sample_i <- mcmc_samples[i,]
+  names(sample_i) <- NULL
+  sample_i <- unlist(sample_i)
+  n_clusters[i] <- length(unique(sample_i))
+}
+plot(n_clusters)
 
 ################################## Compute PSM #################################
 
-mcmc_samples <- read.csv("../mdi/CN_200max.csv")
-# samples <- samples[seq.int(from = 1001, to = 2000), 2:2422]
-# colnames(samples) <- sub("Dataset1_", "", colnames(samples))
-# 
-# psm_cn <- matrix(0, dim(samples)[2], dim(samples)[2])
-# n_clusters <- rep(0, dim(samples)[1])
-# for(i in 1:dim(samples)[1]){
-#   cat(i, "\n")
-#   sample_i <-samples[i,]
-#   names(sample_i) <- NULL
-#   sample_i <- unlist(sample_i)
-#   n_clusters[i] <- length(unique(sample_i))
-#   for(j in unique(sample_i)){
-#     psm_cn <- psm_cn + crossprod(samples[i,] == j)
-#   }
-# }
-# psm_cn <- psm_cn / dim(samples)[1]
-# coph_corr_cn <- copheneticCorrelation(psm_cn)
+mcmc_samples <- mcmc_samples[1001:2000, 2:2422]
+colnames(mcmc_samples) <- sub("Dataset1_", "", colnames(mcmc_samples))
+Rcpp::sourceCpp("makePSM.cpp")
+psm_cn <- makePSM(as.matrix(mcmc_samples))
+rownames(psm_cn) <- colnames(psm_cn) <- colnames(mcmc_samples)
+coph_corr_cn <- copheneticCorrelation(psm_cn)
 
 ################################## Cluster PSM #################################
 
 load("../data/samples.RData")
 
-# table(n_clusters)
-# 
-# parameters <- list(
-#   cluster_count =
-#     as.numeric(names(table(n_clusters))[which.max(table(n_clusters))]))
-# psm_cn <- spectrumShift(psm_cn, verbose = TRUE, shift = 0.000001)
-# kkm_output <- kkmeans(psm_cn, parameters)
-# clusters <- kkm_output$clustering
-# names(clusters) <- gsub("\\.", "-", rownames(psm_cn))
-# 
-# ari <- adjustedRandIndex(clusters, anno_col[names(clusters),]$Tissue) 
-# save(psm_cn, coph_corr_cn, n_clusters, clusters, ari,
-#      file = "../mdi/psm_cn.RData")
-load("../mdi/psm_cn.RData")
+table(n_clusters)
+
+parameters <- list(
+  cluster_count =
+    as.numeric(names(table(n_clusters))[which.max(table(n_clusters))]))
+psm_cn <- spectrumShift(psm_cn, verbose = TRUE, shift = 0.000001)
+kkm_output <- kkmeans(psm_cn, parameters)
+clusters <- kkm_output$clustering
+names(clusters) <- gsub("\\.", "-", rownames(psm_cn))
+
+ari <- adjustedRandIndex(clusters, anno_col[names(clusters),]$Tissue)
+save(psm_cn, coph_corr_cn, n_clusters, clusters, ari,
+     file = paste0("../mdi/psm_cn_chain", chain,".RData"))
+load(paste0("../mdi/psm_cn_chain", chain,".RData"))
 
 ################################### Plot PSM ###################################
 
@@ -107,7 +99,7 @@ Hpsm <- Heatmap(psm_cn,
                 show_row_dend = FALSE
 )
 
-png("../figures/psm_mdi_cn.png",
+png(paste0("../figures/psm_mdi_cn_chain", chain,".png"),
     height = 572,
     width = 520
 )
@@ -120,16 +112,16 @@ dev.off()
 
 ########################### Convergence  assessment ############################
 
+mcmc_samples <- read.csv(paste0("../mdi/CN_250max_chain",chain,".csv"))
 mass_parameter <- mcmc_samples[,1]
 
-png("../figures/mass_parameter_cn_chain.png",
+png(paste0("../figures/mass_parameter_cn_chain", chain,".png"),
     height = 400, width = 400)
-plot(seq.int(from=5001, to=10000, by = 5),
-     mass_parameter[1001:2000],
+plot(mass_parameter,
      type = 'l', xlab = "Iteration", ylab = "Mass parameter")
 dev.off()
 
-png("../figures/mass_parameter_cn_posterior.png",
+png(paste0("../figures/mass_parameter_cn_posterior_chain", chain, ".png"),
     height = 400, width = 400)
 hist(mass_parameter[1001:2000],
      breaks = 50,
@@ -137,19 +129,18 @@ hist(mass_parameter[1001:2000],
      xlab = "Mass parameter")
 dev.off()
 
-png("../figures/n_clusters_cn_chain.png",
+png(paste0("../figures/n_clusters_cn_chain", chain,".png"),
     height = 400, width = 400)
-plot(seq.int(from=5001, to=10000, by = 5),
-     n_clusters,
+plot(n_clusters,
      type = 'l',
      xlab = "Iteration",
      ylab = "Number of clusters")
 dev.off()
 
-png("../figures/n_clusters_cn_posterior.png",
+png(paste0("../figures/n_clusters_cn_posterior", chain,".png"),
     height = 400, width = 400)
-hist(n_clusters,
-     breaks = 2,
+hist(n_clusters[1001:2000],
+     breaks = 6,
      main = "",
      xlab = "Number of clusters")
 dev.off()

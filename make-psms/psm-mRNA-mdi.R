@@ -7,59 +7,52 @@ library(ComplexHeatmap)
 library(klic)
 library(mclust)
 
+################################# Select chain #################################
+
+chain <- 1 # Must be an integer between 1 and 5
+
 #### Check that maximum number of clusters has been set correctly in mdipp #####
 
-# samples_max100 <- read.csv("../mdi/mRNA_100max.csv")
-# n_clusters_max100 <- ari<- rep(0, 1000)
-# for(i in 1:dim(samples_max100)[1]){
-#   sample_i <-samples_max100[i,]
-#   names(sample_i) <- NULL
-#   sample_i <- unlist(sample_i)
-#   n_clusters_max100[i] <- length(unique(sample_i))
-#   ari[i]<-adjustedRandIndex(sample_i, samples_max100[1000,])
-# }
-# plot(1:1000, n_clusters_max100)
-# plot(ari)
+mcmc_samples <- read.csv(paste0("../mdi/mRNA_250max_chain", chain,".csv"))
+
+n_clusters <- ari<- rep(0, )
+for(i in 1:dim(mcmc_samples)[1]){
+  sample_i <-mcmc_samples[i,]
+  names(sample_i) <- NULL
+  sample_i <- unlist(sample_i)
+  n_clusters[i] <- length(unique(sample_i))
+  ari[i]<-adjustedRandIndex(sample_i, mcmc_samples[2000,])
+}
+plot(n_clusters)
+plot(ari)
 
 ################################# Compute PSM ##################################
 
-mcmc_samples <- read.csv("../mdi/mRNA_200max.csv")
-# samples <- samples[seq.int(from = 1001, to = 2000), 2:2422]
-# colnames(samples) <- sub("Dataset1_", "", colnames(samples))
-# 
-# psm_mrna <- matrix(0, dim(samples)[2], dim(samples)[2])
-# n_clusters <- rep(0, dim(samples)[1])
-# for(i in 1:dim(samples)[1]){
-#   cat(i, "\n")
-#   sample_i <-samples[i,]
-#   names(sample_i) <- NULL
-#   sample_i <- unlist(sample_i)
-#   n_clusters[i] <- length(unique(sample_i))
-#   for(j in unique(sample_i)){
-#     psm_mrna <- psm_mrna + crossprod(samples[i,] == j)
-#   }
-# }
-# psm_mrna <- psm_mrna / dim(samples)[1]
-# coph_corr_mrna <- copheneticCorrelation(psm_mrna)
+# Remove burn-in
+mcmc_samples <- mcmc_samples[seq.int(from = 1001, to = 2000), 2:2422]
+colnames(mcmc_samples) <- sub("Dataset1_", "", colnames(mcmc_samples))
+Rcpp::sourceCpp("makePSM.cpp")
+psm_mrna <- makePSM(mmcmc_samples)
+coph_corr_mrna <- copheneticCorrelation(psm_mrna)
 
 ################################## Cluster PSM #################################
 
 load("../data/samples.RData")
 
-# table(n_clusters)
-# 
-# parameters <- list(
-#   cluster_count =
-#     as.numeric(names(table(n_clusters))[which.max(table(n_clusters))]))
-# psm_mrna <- spectrumShift(psm_mrna, verbose = TRUE, shift = 0.000001)
-# kkm_output <- kkmeans(psm_mrna, parameters)
-# clusters <- kkm_output$clustering
-# names(clusters) <- gsub("\\.", "-", rownames(psm_mrna))
-# 
-# ari <- adjustedRandIndex(clusters, anno_col[names(clusters),]$Tissue) 
-# save(psm_mrna, coph_corr_mrna, n_clusters, clusters, ari,
-#      file = "../mdi/psm_mrna.RData")
-load("../mdi/psm_mrna.RData")
+table(n_clusters)
+
+parameters <- list(
+  cluster_count =
+    as.numeric(names(table(n_clusters))[which.max(table(n_clusters))]))
+psm_mrna <- spectrumShift(psm_mrna, verbose = TRUE, shift = 0.000001)
+kkm_output <- kkmeans(psm_mrna, parameters)
+clusters <- kkm_output$clustering
+names(clusters) <- gsub("\\.", "-", rownames(psm_mrna))
+
+ari <- adjustedRandIndex(clusters, anno_col[names(clusters),]$Tissue)
+save(psm_mrna, coph_corr_mrna, n_clusters, clusters, ari,
+     file = "../mdi/psm_mrna_chain", chain, ".RData")
+load(paste0("../mdi/psm_mrna_chain", chain, ".RData"))
 
 ################################### Plot PSM ###################################
 
@@ -109,7 +102,7 @@ Hpsm <- Heatmap(psm_mrna,
                 show_row_dend = FALSE
 )
 
-png("../figures/psm_mdi_mrna.png",
+png(paste0("../figures/psm_mdi_mrna_chain",chain,".png"),
     height = 572,
     width = 520
 )
@@ -124,14 +117,14 @@ dev.off()
 
 mass_parameter <- mcmc_samples[,1]
 
-png("../figures/mass_parameter_mrna_chain.png",
+png(paste0("../figures/mass_parameter_mrna_chain",chain,".png"),
     height = 400, width = 400)
 plot(seq.int(from=5001, to=10000, by = 5),
      mass_parameter[1001:2000],
      type = 'l', xlab = "Iteration", ylab = "Mass parameter")
 dev.off()
 
-png("../figures/mass_parameter_mrna_posterior.png",
+png(paste0("../figures/mass_parameter_mrna_posterior_chain",chain,".png"),
     height = 400, width = 400)
 hist(mass_parameter[1001:2000],
      breaks = 50,
@@ -139,7 +132,7 @@ hist(mass_parameter[1001:2000],
      xlab = "Mass parameter")
 dev.off()
 
-png("../figures/n_clusters_mrna_chain.png",
+png(paste0("../figures/n_clusters_mrna_chain",chain,".png"),
     height = 400, width = 400)
 plot(seq.int(from=5001, to=10000, by = 5),
      n_clusters,

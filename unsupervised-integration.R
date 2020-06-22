@@ -7,6 +7,7 @@ set.seed(1)
 
 library(ComplexHeatmap)
 library(colorspace)
+library(mclust)
 library(rcartocolor)
 
 # library(devtools)
@@ -56,43 +57,49 @@ CM[,, "RPPA"] <- psm_rppa
 # Use localised multiple kernel k-means to integrate the datasets
 
 # Initialise array of kernel matrices
-maxK <- 30
+maxK <- 12
 KM <- array(0, c(N, N, maxK - 1))
 clLabels <- array(NA, c(maxK - 1, N))
 theta <- array(NA, c(maxK - 1, N, n_datasets))
 
-parameters <- list()
-parameters$iteration_count <-
-    100 # set the maximum number of iterations
+### Each of these must is run separately on the HPC ###
+# parameters <- list()
+# parameters$iteration_count <-
+#     200 # set the maximum number of iterations
+# 
+# i <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))
+#     # Use kernel k-means with K=i to find weights and cluster labels
+#     parameters$cluster_count <- i # set the number of clusters K
+#     lmkkm <- lmkkmeans(CM, parameters, verbose = TRUE)
+# 
+#     # Compute weighted matrix
+#     for (j in 1:dim(CM)[3]) {
+#         KM[, , i - 1] <-
+#             KM[, , i - 1] +
+#             (lmkkm$Theta[, j] %*% t(lmkkm$Theta[, j])) * CM[, , j]
+#     }
+# 
+#     # Save cluster labels
+#     clLabels[i - 1, ] <- lmkkm$clustering
+#     theta[i - 1, , ] <- lmkkm$Theta
+# 
+# KM_i <- KM[,,i-1]
+# clLabels_i <- clLabels[i-1,]
+# theta_i <- theta[i-1,,]
+#     
+# save(KM_i, clLabels_i, theta_i,
+#      file = paste0("data/unsupervised_output_", i, ".RData"))
 
-# for(i in 2:maxK) {
-i <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))
-    # Use kernel k-means with K=i to find weights and cluster labels
-    parameters$cluster_count <- i # set the number of clusters K
-    lmkkm <- lmkkmeans(CM, parameters, verbose = TRUE)
-
-    # Compute weighted matrix
-    for (j in 1:dim(CM)[3]) {
-        KM[, , i - 1] <-
-            KM[, , i - 1] +
-            (lmkkm$Theta[, j] %*% t(lmkkm$Theta[, j])) * CM[, , j]
-    }
-
-    # Save cluster labels
-    clLabels[i - 1, ] <- lmkkm$clustering
-    theta[i - 1, , ] <- lmkkm$Theta
-# }
-
-KM_i <- KM[,,i-1]
-clLabels_i <- clLabels[i-1,]
-theta_i <- theta[i-1,]
-    
-save(KM_i, clLabels_i, theta_i,
-     file = paste0("data/unsupervised_output_", i, ".RData"))
+for(i in 2:maxK){
+    load(paste0("data/unsupervised_output_", i, "_earlystop.RData"))
+    KM[,,i-1] <- KM_i
+    clLabels[i-1,] <- clLabels_i
+    theta[i-1,,] <- theta_i
+}
     
 ############################### Maximise silhouette ############################
 
-# maxSil <- maximiseSilhouette(KM, clLabels, maxK = maxK)
+maxSil <- maximiseSilhouette(KM, clLabels, maxK = maxK)
 # 
 # save(
 #     KM,
@@ -104,17 +111,17 @@ save(KM_i, clLabels_i, theta_i,
 
 # load("data/unsupervised_output_dpmsysbio.RData")
 # 
-# dimnames(theta) <- list(paste(as.character(2:maxK), "_clusters"),
-#                         rownames(CM),
-#                         c("ChIP", "Expression")
-# )
+dimnames(theta) <- list(paste(as.character(2:maxK), "_clusters"),
+                        rownames(CM),
+                        c("CN", "Methylation", "miRNA", "mRNA", "RPPA")
+)
 
 ################################## Plot output #################################
 
-# bestK <- maxSil$K
-# inds <- rownames(CM)
-# clustersBestK <- clLabels[bestK - 1, ]
-# names(clustersBestK) <- rownames(CM)
+bestK <- maxSil$K
+inds <- rownames(CM)
+clustersBestK <- clLabels[bestK - 1, ]
+names(clustersBestK) <- rownames(CM)
 
 # Write clusters to csv files:
 # write.table(
@@ -147,88 +154,104 @@ save(KM_i, clLabels_i, theta_i,
 # )
 
 # Let's just plot the clusters:
-# table(clustersBestK)
-# sortedClusters <- sort(clustersBestK, index.return = T)
-# myBlues <-
-#   colorRampPalette(RColorBrewer::brewer.pal(9, "Blues"))(100)
+table(clustersBestK)
+sortedClusters <- sort(clustersBestK, index.return = T)
+myBlues <-
+  colorRampPalette(RColorBrewer::brewer.pal(9, "Blues"))(100)
 
-# my_anno_legend_param <- function(name, nrow=1) {
-#   return(list(
-#     title = name,
-#     labels_gp = gpar(fontsize = 18),
-#     title_gp = gpar(fontsize = 22),
-#     nrow = nrow
-#   ))
-# }
+my_anno_legend_param <- function(name, nrow=1) {
+  return(list(
+    title = name,
+    labels_gp = gpar(fontsize = 18),
+    title_gp = gpar(fontsize = 22),
+    nrow = nrow
+  ))
+}
 
-# my_heatmap_legend_param <- list(labels_gp = gpar(fontsize = 18),
-#                                 title_gp = gpar(fontsize = 22),
-#                                 direction = "horizontal",
-#                                 nrow = 1,
-#                                 legend_width = unit(4.5, "cm"))
-# col_bw = c("white", "black")
+my_heatmap_legend_param <- list(labels_gp = gpar(fontsize = 18),
+                                title_gp = gpar(fontsize = 22),
+                                direction = "horizontal",
+                                nrow = 1,
+                                legend_width = unit(4.5, "cm"))
+col_bw = c("white", "black")
 
-# palette25 = c("#B7BF10", # Light green
-#               "#4E5B31", # Core green
-#               "#115E67", # Core Cambridge blue
-#               "#85b09A", # Light Cambridge blue
-#               "#0072ce", # Core blue
-#               "#6CACE4", # Light blue
-#               "#E89CAE", # Light pink
-#               "#af95a6", # Light purple
-#               "#8C77A3", # Modified core purple
-#               "#D50032", # Core red
-#               "#E87722", # Core orange
-#               "#F1BE48", # Light yellow
-#               "#edf373", # Light green
-#               "#adbe86", # Core green
-#               "#57d4e3", # Core Cambridge blue
-#               "#c2d7cc", # Light Cambridge blue
-#               "#66bbff", # Core blue
-#               "#b5d5f1", # Light blue
-#               "#f3cdd6", # Light pink
-#               "#d7cad2", # Light purple
-#               "#c5bbd1", # Modified core purple
-#               "#ff6a8d", # Core red
-#               "#f3bb90", # Core orange
-#               "#f7dea3", # Light yellow
-#               "#000000") # Black
+# This contains palette12, which is used for the tumour colours throughout
+load("data/tumour_colours.RData")
 
-# shuffled_palette25 <- palette25[sample(1:25,bestK)]
-# names(shuffled_palette25) <- as.character(1:bestK)
+# Ideally we would like to different colours for the clusters
 
-# Hclusters <-
-#   rowAnnotation(
-#     finalClusters = as.factor(sortedClusters$x),
-#     name = "Final clusters",
-#     annotation_legend_param = my_anno_legend_param("Clusters", nrow=1),
-#     show_annotation_name = FALSE,
-#     col = list(finalClusters =  shuffled_palette25))
-# HwMatrix <-
-#   Heatmap(
-#     KM[sortedClusters$ix, sortedClusters$ix, bestK - 1],
-#     cluster_columns = FALSE,
-#     cluster_rows = FALSE,
-#     show_column_names = FALSE,
-#     name = "Weighted kernel",
-#     col = myBlues,
-#     # row_split = sortedClusters$x,
-#     # column_split = sortedClusters$x,
-#     right_annotation = Hclusters,
-#     heatmap_legend_param = my_heatmap_legend_param,
-#     width = unit(20, "cm"),
-#     height = unit(20, "cm"))
+palette25 = c("#B7BF10", # Light green
+              "#4E5B31", # Core green
+              "#115E67", # Core Cambridge blue
+              "#85b09A", # Light Cambridge blue
+              "#0072ce", # Core blue
+              "#6CACE4", # Light blue
+              "#E89CAE", # Light pink
+              "#af95a6", # Light purple
+              "#8C77A3", # Modified core purple
+              "#D50032", # Core red
+              "#E87722", # Core orange
+              "#F1BE48", # Light yellow
+              "#edf373", # Light green
+              "#adbe86", # Core green
+              "#57d4e3", # Core Cambridge blue
+              "#c2d7cc", # Light Cambridge blue
+              "#66bbff", # Core blue
+              "#b5d5f1", # Light blue
+              "#f3cdd6", # Light pink
+              "#d7cad2", # Light purple
+              "#c5bbd1", # Modified core purple
+              "#ff6a8d", # Core red
+              "#f3bb90", # Core orange
+              "#f7dea3", # Light yellow
+              "#000000") # Black
+
+# Choose colours that are not in palette12 for the clusters
+which(palette25 %in% palette12)
+palette_clusters <- palette25[13:(13+bestK-1)] 
+names(palette_clusters) <- as.character(1:bestK)
+
+names(clustersBestK) <- gsub("\\.", "-", names(clustersBestK))
+load("data/samples.RData")
+adjustedRandIndex(anno_col[names(clustersBestK),]$Tissue, clustersBestK)
+adjustedRandIndex(anno_col[names(clustersBestK),]$COCA, clustersBestK)
+
+annotations <- data.frame(Cluster = as.factor(clustersBestK),
+                          Tissue = anno_col[names(clustersBestK),]$Tissue,
+                          COCA = anno_col[names(clustersBestK),]$COCA)
+
+Hclusters <-
+  rowAnnotation(
+    df = annotations[sortedClusters$ix,],
+    name = "Final clusters",
+    # annotation_legend_param = my_anno_legend_param("Clusters", nrow=1),
+    show_annotation_name = FALSE,
+    col = list(Clusters =  palette_clusters))
+HwMatrix <-
+  Heatmap(
+    KM[sortedClusters$ix, sortedClusters$ix, bestK - 1],
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    show_column_names = FALSE,
+    name = "Weighted kernel",
+    col = myBlues,
+    # row_split = sortedClusters$x,
+    # column_split = sortedClusters$x,
+    right_annotation = Hclusters,
+    heatmap_legend_param = my_heatmap_legend_param,
+    width = unit(20, "cm"),
+    height = unit(20, "cm"))
 
 # png(
 #   paste0("figures/first_set_of_data_weightedKernel_", bestK, "clusters.png"),
 #   height = 660,
 #   width = 600
 # )
-# draw(
-#   HwMatrix,
-#   heatmap_legend_side = "bottom",
-#   annotation_legend_side = "bottom"
-# )
+draw(
+  HwMatrix,
+  heatmap_legend_side = "bottom",
+  annotation_legend_side = "bottom"
+)
 # dev.off()
 # 
 # save(clustersBestK,

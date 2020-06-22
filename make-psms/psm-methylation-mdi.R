@@ -7,26 +7,30 @@ library(ComplexHeatmap)
 library(klic)
 library(mclust)
 
+################################# Select chain #################################
+
+chain <- 1 # Must be an integer between 1 and 5
+
 ################################## Compute PSM #################################
 
-mcmc_samples <- read.csv("../mdi/methylation_50max.csv")
-# mcmc_samples <- mcmc_samples[seq.int(from = 1001, to = 2000), 2:2422]
-# colnames(mcmc_samples) <- sub("Dataset1_", "", colnames(mcmc_samples))
-# 
-# psm_methylation <- matrix(0, dim(mcmc_samples)[2], dim(mcmc_samples)[2])
-# n_clusters <- rep(0, dim(mcmc_samples)[1])
-# for(i in 1:dim(mcmc_samples)[1]){
-#   cat(i, "\n")
-#   sample_i <-mcmc_samples[i,]
-#   names(sample_i) <- NULL
-#   sample_i <- unlist(sample_i)
-#   n_clusters[i] <- length(unique(sample_i))
-#   for(j in unique(sample_i)){
-#     psm_methylation <- psm_methylation + crossprod(mcmc_samples[i,] == j)
-#   }
-# }
-# psm_methylation <- psm_methylation / dim(mcmc_samples)[1]
-# coph_corr_methylation <- copheneticCorrelation(psm_methylation)
+mcmc_samples <- read.csv(paste0("../mdi/methylation_50max_chain", chain,".csv"))
+mcmc_samples <- mcmc_samples[seq.int(from = 1001, to = 2000), 2:2422]
+colnames(mcmc_samples) <- sub("Dataset1_", "", colnames(mcmc_samples))
+
+psm_methylation <- matrix(0, dim(mcmc_samples)[2], dim(mcmc_samples)[2])
+n_clusters <- rep(0, dim(mcmc_samples)[1])
+for(i in 1:dim(mcmc_samples)[1]){
+  cat(i, "\n")
+  sample_i <-mcmc_samples[i,]
+  names(sample_i) <- NULL
+  sample_i <- unlist(sample_i)
+  n_clusters[i] <- length(unique(sample_i))
+  for(j in unique(sample_i)){
+    psm_methylation <- psm_methylation + crossprod(mcmc_samples[i,] == j)
+  }
+}
+psm_methylation <- psm_methylation / dim(mcmc_samples)[1]
+coph_corr_methylation <- copheneticCorrelation(psm_methylation)
 
 ################################## Cluster PSM #################################
 
@@ -45,8 +49,8 @@ load("../data/samples.RData")
 # 
 # ari <- adjustedRandIndex(clusters, anno_col[names(clusters),]$Tissue) 
 # save(psm_methylation, coph_corr_methylation, n_clusters, clusters, ari,
-#      file = "../mdi/psm_methylation.RData")
-load("../mdi/psm_methylation.RData")
+     # file = paste0("../mdi/psm_methylation_chain", chain,".RData"))
+load("../mdi/psm_methylation_chain", chain,".RData")
 
 ################################### Plot PSM ###################################
 
@@ -98,7 +102,7 @@ Hpsm <- Heatmap(psm_methylation,
                 show_row_dend = FALSE
 )
 
-png("../figures/psm_mdi_methylation.png",
+png(paste0("../figures/psm_mdi_methylation_chain", chain,".png"),
     height = 572,
     width = 520
 )
@@ -113,14 +117,14 @@ dev.off()
 
 mass_parameter <- mcmc_samples[,1]
 
-png("../figures/mass_parameter_methylation_chain.png",
+png(paste0("../figures/mass_parameter_methylation_chain", chain,".png"),
 height = 400, width = 400)
 plot(seq.int(from=5001, to=10000, by = 5),
      mass_parameter[1001:2000],
      type = 'l', xlab = "Iteration", ylab = "Mass parameter")
 dev.off()
 
-png("../figures/mass_parameter_methylation_posterior.png",
+png(paste0("../figures/mass_parameter_methylation_posterior_chain", chain,".png"),
     height = 400, width = 400)
 hist(mass_parameter[1001:2000],
      breaks = 50,
@@ -128,7 +132,7 @@ hist(mass_parameter[1001:2000],
      xlab = "Mass parameter")
 dev.off()
 
-png("../figures/n_clusters_methylation_chain.png",
+png(paste0("../figures/n_clusters_methylation_chain", chain,".png"),
     height = 400, width = 400)
 plot(seq.int(from=5001, to=10000, by = 5),
      n_clusters,
@@ -137,7 +141,7 @@ plot(seq.int(from=5001, to=10000, by = 5),
      ylab = "Number of clusters")
 dev.off()
 
-png("../figures/n_clusters_methylation_posterior.png",
+png(paste0("../figures/n_clusters_methylation_posterior_chain", chain,".png"),
     height = 400, width = 400)
 hist(n_clusters,
      # breaks = 50,
