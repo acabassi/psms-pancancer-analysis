@@ -56,3 +56,4 @@ unsupervised-integration-output/unsupervised_output_all_alpha1.RData
 unsupervised-integration-output/unsupervised_output_allalpha01.RData
 unsupervised-integration-output/unsupervised_output_allalpha1.RData
 mdi/old/*
+*.png
