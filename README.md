@@ -4,7 +4,7 @@ The code contained in this folder can be used to reproduce the pancancer analysi
 
 ## References
 
-- Cabassi, Richardson, and Kirk. Kernel learning approaches for summarising and combining posterior similarity matrices. In preparation.
+- Cabassi, Richardson, and Kirk. Kernel learning approaches for summarising and combining posterior similarity matrices. arXiv preprint, arXiv:2009.12852
 
 - Hoadley, K.A., Yau, C., Wolf, D.M., Cherniack, A.D., Tamborero, D., Ng, S., Leiserson, M.D., Niu, B., McLellan, M.D., Uzunangelov, V. and Zhang, J., 2014. Multiplatform analysis of 12 cancer types reveals molecular classification within and across tissues of origin. Cell, 158(4), pp.929-944.
 
